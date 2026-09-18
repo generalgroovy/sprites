@@ -1,41 +1,44 @@
 # Pixel Forge
 
-A self-contained sprite and animation editor for GitHub Pages. The application lives entirely in `index.html`: no build step, external libraries, account, API key, or backend is required.
+**A pixel-art and animation workbench in one HTML file.** Draw sprites, build frame-by-frame animations, or start from an editable procedural recipe. Your artwork stays in your browser. No installation, account, external library or API key is required.
 
-## Use
+[Open the editor](https://generalgroovy.github.io/sprites/) · [User guide](docs/GUIDE.md) · [Development & tests](docs/DEVELOPMENT.md)
 
-Open `index.html` in a modern desktop browser. Start with the included crystal animation, choose **New** for a blank canvas, or choose **Generate** for an editable procedural sprite. Duplicate frames to animate and press **Space** to play.
+## Make your first animation
 
-**Save** downloads a lossless editable project. **Export** produces finished artwork. Keep downloaded project backups; browser-local recovery is not a substitute for saving.
+1. Edit the crystal example, choose **New** for a blank canvas, or use **Generate** for a recipe.
+2. Pick a color and draw. **Duplicate frame**, change the pose, then press **Space** to preview.
+3. **Save** downloads an editable project. **Export** makes finished artwork. Keep both.
 
-## Features
+**Find an action** (`Ctrl/Cmd+K`) searches tools, panels, timing, imports and exports. The **?** help button explains the workflow and shortcuts inside the editor. On narrow screens, use **Panels** for colors, layers and generators.
 
-- Pencil, eraser, flood fill, eyedropper, lines, rectangles, ellipses, brush opacity, and symmetry.
-- Layers with visibility, locking, opacity, blend modes, reordering, duplication, and merge-down.
-- Rectangular selections, move, copy, cut, paste, crop, flips, rotation, outlines, recoloring, and palette mapping.
-- Animation timeline, per-frame timing, onion skin, loop/ping-pong/once playback, and live/tiled previews.
-- Six procedural sprite recipes and motion-loop generation from existing artwork.
-- Image import and sprite-sheet slicing; PNG, GIF, APNG, sprite sheets with JSON metadata, and PNG-frame ZIP exports.
-- Undo/redo, keyboard shortcuts, zoom/pan, grid, and a collapsible inspector.
+## What is where?
 
-Generation is procedural, not text-to-image AI. Animated image imports currently become one decoded still; use sprite sheets or project files to import timelines. Canvases are limited to 256 x 256 pixels, with frame/layer limits and memory safeguards.
+| Area | Use it for |
+| --- | --- |
+| Tool rail | Drawing, erasing, filling, sampling, shapes, selection and movement. |
+| Canvas | Pixel editing, zoom, grid, onion skin and coordinate rulers. Checker / Dark / Paper surfaces are view-only. |
+| Motion strip | Frames, per-frame holds, playback, duplication and reordering. Hold bars compare each duration with the longest frame. |
+| Paint | Colors, palettes and layers. Layer visibility, opacity and order apply across all frames. |
+| Generate | Six seeded, editable sprite recipes. This is procedural generation, not AI. |
+| Adjust | Transforms, color changes, canvas resizing and motion loops from a pose. |
 
-## GitHub Pages
+**Amber marks editing selections; blue marks playback.** Focus mode gives the canvas more room without hiding the timeline or tools.
 
-In this repository's **Settings > Pages**, choose **Deploy from a branch**, select **main**, choose **/(root)**, and save.
+## Choose an export
 
-After a successful Pages deployment, the site address is:
+**PNG** for one sprite. **GIF** for convenient sharing. **APNG** for full-color animation with partial transparency. **Sprite sheet + JSON** for games. **PNG frames + timing JSON** for another editor.
 
-https://generalgroovy.github.io/sprites/
+**Browser recovery is not a backup.** Download project files regularly; storage is browser- and site-specific and may be cleared. Use one editing tab per site.
 
-The `.nojekyll` file marks this as a plain static site. No package installation or build command is needed.
+## Run or publish
+
+Open `index.html` directly, or serve this folder with `python -m http.server 8000`. No build command is needed.
+
+For the editor link above, enable **Settings → Pages → Deploy from a branch → main → /(root)** in this repository. Keep `.nojekyll` in the root. Deployment settings are separate from the editor code.
+
+Canvas sizes are **1–256 pixels per side**, with a **16 MB raw-pixel budget**, up to **128 frames** and **16 layers**. Animated image imports become one still; use a sprite sheet or saved project for a timeline. [Details and troubleshooting](docs/GUIDE.md#troubleshooting-and-limits).
 
 ## Verification
 
-The uploaded editor should have this SHA-256 checksum:
-
-```text
-2249003fce634c5df6ab60deba70d9fb7c60936755ae575d246b05345f1cacc3  index.html
-```
-
-The supplied release previously reported 61 passing automated checks in Chromium with embedded HTML rendering. That does not establish real-origin storage behavior, cross-browser support, physical touch-device behavior, or successful GitHub Pages deployment. Check those separately for your environment.
+Version **1.1.0**: **61 core checks + 32 workbench checks passed** in Chromium using embedded HTML rendering, including export decoding and 320–1920 px layouts. Real-origin recovery, live Pages deployment, Firefox, Safari and physical touch hardware were not verified by these runs. See the [test report](docs/TESTING.md) for exact scope and reproduction commands.
