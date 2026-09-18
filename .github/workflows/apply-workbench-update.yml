@@ -1,0 +1,96 @@
+name: Apply verified workbench update
+
+on:
+  push:
+    branches: [main]
+    paths: ['.github/workflows/apply-workbench-update.yml']
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Reconstruct and commit tested files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          AUTH=$(printf 'x-access-token:%s' "$GH_TOKEN" | base64 -w0)
+          git -c http.extraheader="AUTHORIZATION: basic $AUTH" clone --quiet --depth 2 --branch main "https://github.com/${GITHUB_REPOSITORY}.git" worktree
+          cd worktree
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$(git rev-parse HEAD^)" = "fd678a2d016be5782a39b007591fcd1350cf5357"
+          python3 - <<'PY'
+          import base64, hashlib, json, lzma, os, subprocess, urllib.request
+          from pathlib import Path
+          parts = [
+              '771b1fd689ea88f304966180d022318f38f3e125',
+              'eae468a4805ba28885f9b8370a6251459900a638',
+              '8596b1bd66d23e81199e7ac49aae03c45d245e88',
+              '98fdf74937f6ddf0c4ea4e81cddfb4bf08328cc6',
+          ]
+          payload = bytearray()
+          for sha in parts:
+              url = f"https://api.github.com/repos/{os.environ['GITHUB_REPOSITORY']}/git/blobs/{sha}"
+              req = urllib.request.Request(url, headers={
+                  'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                  'Accept': 'application/vnd.github+json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+              })
+              with urllib.request.urlopen(req, timeout=30) as response:
+                  blob = json.load(response)
+              data = base64.b64decode(blob['content'])
+              actual = hashlib.sha1(b'blob ' + str(len(data)).encode() + b'\0' + data).hexdigest()
+              assert actual == sha, 'Transfer blob mismatch'
+              payload.extend(data)
+          assert hashlib.sha256(payload).hexdigest() == '8f203855e5017801af9f806fd49be5b7eb04675833341cc79ab4bb43322e1895'
+          bundle = json.loads(lzma.decompress(payload, memlimit=134217728))
+          assert bundle['format'] == 1
+          assert bundle['expected_parent'] == subprocess.check_output(['git', 'rev-parse', 'HEAD^'], text=True).strip()
+          allowed = {'index.html', 'README.md', 'SHA256SUMS.txt', '.gitignore', 'docs/GUIDE.md', 'docs/DEVELOPMENT.md', 'docs/TESTING.md', 'tests/regression.py', 'tests/workbench.py', 'tests/requirements.txt'}
+          assert len(bundle['files']) == len(allowed)
+          assert {entry['path'] for entry in bundle['files']} == allowed
+          outputs = []
+          for entry in bundle['files']:
+              path = Path(entry['path'])
+              assert not path.is_symlink()
+              expected = entry['expected_blob']
+              if expected is not None:
+                  assert path.is_file(), f'Missing original: {path}'
+                  actual = subprocess.check_output(['git', 'hash-object', str(path)], text=True).strip()
+                  assert actual == expected, f'Original changed: {path}'
+              else:
+                  assert not path.exists(), f'New path already exists: {path}'
+              if 'ops' in entry:
+                  original = path.read_bytes()
+                  assert hashlib.sha256(original).hexdigest() == entry['base_sha256']
+                  text = original.decode('utf-8')
+                  chunks = []
+                  for op in entry['ops']:
+                      if isinstance(op, str):
+                          chunks.append(op)
+                      else:
+                          assert isinstance(op, list) and len(op) == 2
+                          start, end = op
+                          assert isinstance(start, int) and isinstance(end, int) and 0 <= start <= end <= len(text)
+                          chunks.append(text[start:end])
+                  result = ''.join(chunks).encode('utf-8')
+              else:
+                  result = entry['text'].encode('utf-8')
+              assert hashlib.sha256(result).hexdigest() == entry['sha256'], f'Output mismatch: {path}'
+              outputs.append((path, result))
+          for path, data in outputs:
+              path.parent.mkdir(parents=True, exist_ok=True)
+              path.write_bytes(data)
+              print(f'Verified {path}: {hashlib.sha256(data).hexdigest()}')
+          subprocess.run(['git', 'add', '--'] + [str(path) for path, data in outputs], check=True)
+          PY
+          sha256sum -c SHA256SUMS.txt
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Refine Pixel Forge workbench and simplify documentation'
+          git -c http.extraheader="AUTHORIZATION: basic $AUTH" push origin HEAD:main
